@@ -42,23 +42,35 @@ public class MigrateToDBPartition {
 
 		Class.forName(JDBC_DRIVER).newInstance();
 
+		List<Long> companyIds = null;
+
 		try {
 			_connection = DriverManager.getConnection(
 				JDBC_URL1 + _defaultSchemaName + JDBC_URL2, args[1], args[2]);
 
-			List<Long> companyIds = _getNonDefaultCompanyIds();
-
-			for (Long companyId : companyIds) {
-				System.out.println("** Migrating company with id " + companyId);
-
-				_createSchema(companyId);
-			}
+			companyIds = _getNonDefaultCompanyIds();
 		}
 		finally {
 			if (_connection != null) {
 				_connection.close();
 			}
 		}
+
+		for (Long companyId : companyIds) {
+				System.out.println("** Migrating company with id " + companyId);
+
+				try {
+					_connection = DriverManager.getConnection(
+						JDBC_URL1 + _defaultSchemaName + JDBC_URL2, args[1], args[2]);
+
+					_createSchema(companyId);
+				}
+				finally {
+					if (_connection != null) {
+						_connection.close();
+					}
+				}
+			}
 
 		System.out.println("*** End migrating companies to DB Partition ***");
 	}
@@ -125,7 +137,7 @@ public class MigrateToDBPartition {
 
 		if (_controlTableNames.contains(tableName) ||
 			tableName.startsWith("QUARTZ_") ||
-			!hasColumn(tableName, "companyId")) {
+			!_hasColumn(tableName, "companyId")) {
 
 			return true;
 		}
@@ -133,7 +145,7 @@ public class MigrateToDBPartition {
 		return false;
 	}
 
-	private static boolean hasColumn(String tableName, String columnName)
+	private static boolean _hasColumn(String tableName, String columnName)
 		throws Exception {
 
 		DatabaseMetaData databaseMetaData = _connection.getMetaData();
@@ -188,7 +200,7 @@ public class MigrateToDBPartition {
 	private static String _defaultSchemaName;
 
 	private static final Set<String> _controlTableNames = new HashSet<>(
-		Arrays.asList("Company", "Portlet", "VirtualHost"));
+		Arrays.asList("Company", "VirtualHost"));
 
 	private static final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
 	private static final String JDBC_URL1 = "jdbc:mysql://localhost/";
